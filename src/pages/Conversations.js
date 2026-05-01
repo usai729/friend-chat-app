@@ -72,26 +72,27 @@ const Conversations = () => {
   };
 
   const handleSelectFriend = async (friend) => {
-    if (!cometChatReady) return;
+  if (!cometChatReady) {
+    setError("Chat service not ready. Please wait or refresh the page.");
+    return;
+  }
 
-    setConversationLoading(true);
+  setConversationLoading(true);
+  setError("");
+  try {
+    await conversationsAPI.getConversation(friend.id);
 
-    try {
-      await conversationsAPI.getConversation(friend.id);
-
-      const cometUser = new CometChat.User(friend.cometchat_uid);
-      cometUser.setName(friend.name);
-
-      setSelectedFriend({
-        ...friend,
-        cometChatUserObj: cometUser,
-      });
-    } catch {
-      setError("Cannot open conversation");
-    } finally {
-      setConversationLoading(false);
-    }
-  };
+    // ✅ Fetch the actual CometChat User object
+    const cometChatUser = await CometChat.getUser(friend.cometchat_uid);
+    setSelectedFriend({ ...friend, cometChatUser });
+  } catch (err) {
+    console.error("Error loading conversation", err);
+    setError("Cannot open conversation with this friend. Friendship may have been removed.");
+    setSelectedFriend(null);
+  } finally {
+    setConversationLoading(false);
+  }
+};
 
   // 🧠 Custom message renderer (MAIN FIX)
   const renderMessage = (message) => {
@@ -180,15 +181,14 @@ const Conversations = () => {
                 <>
                   <div className="flex-1 overflow-y-auto">
                     <CometChatMessageList
-                      user={selectedFriend.cometChatUserObj}
+                      user={selectedFriend.cometChatUser}
                       style={{ height: "100%" }}
-                      messageTextRenderer={renderMessage}
                     />
                   </div>
 
                   <div className="border-t">
                     <CometChatMessageComposer
-                      user={selectedFriend.cometChatUserObj}
+                      user={selectedFriend.cometChatUser}
                     />
                   </div>
                 </>
